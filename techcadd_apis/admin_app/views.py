@@ -1,7 +1,6 @@
 from django.shortcuts import render
 
-# Create your views here.
-# admin_app/views.py
+
 
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes

@@ -18,6 +18,7 @@ urlpatterns = [
     # Student Management
     path('students/create/', views.create_student, name='create-student'),
     path('students/list/', views.list_students, name='list-students'),
+    
     path('students/<int:student_id>/', views.get_student_detail, name='student-detail'),
     path('students/<int:student_id>/update/', views.update_student, name='update-student'),
     path('students/stats/', views.student_stats, name='student-stats'),

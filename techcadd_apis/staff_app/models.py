@@ -10,7 +10,7 @@ import datetime
 class StaffProfile(models.Model):
     STAFF_ROLES = [
         ('trainer', 'Trainer'),
-        ('counselor', 'counselor'),
+        ('counselor', 'Counselor'),
         ('manager', 'Manager')
     ]
     

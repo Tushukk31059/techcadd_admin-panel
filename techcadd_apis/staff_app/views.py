@@ -110,6 +110,8 @@ def staff_profile(request):
     serializer = StaffProfileSerializer(staff_profile)
     return Response(serializer.data)
 
+# staff_app/views.py - Update staff_dashboard function
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def staff_dashboard(request):
@@ -121,19 +123,44 @@ def staff_dashboard(request):
             'error': 'Access denied. Staff privileges required.'
         }, status=status.HTTP_403_FORBIDDEN)
     
+    # Get current month for new registrations
+    from django.utils import timezone
+    from django.db.models import Sum
+    today = timezone.now()
+    first_day_of_month = today.replace(day=1)
+    
+    # Total enquiries (all enquiries in the system)
+    total_enquiries = Student_api.objects.all().count()
+    
+    # New registrations (this month) - all registrations
+    new_registrations = StudentRegistration.objects.filter(
+        created_at__gte=first_day_of_month
+    ).count()
+    
+    # Pending fees (total due across all students)
+    pending_fees_result = StudentRegistration.objects.aggregate(
+        total_pending=Sum('fee_balance')
+    )
+    pending_fees = pending_fees_result['total_pending'] or 0
+    
+    # Certificates generated (all certificates)
+    certificates_generated = StudentRegistration.objects.filter(
+        certificate_issued=True
+    ).count()
+    
     dashboard_data = {
         'welcome_message': f'Welcome, {request.user.first_name or request.user.username}!',
         'role': staff_profile.role,
         'department': staff_profile.department,
         'quick_stats': {
-            'pending_tasks': 5,
-            'completed_today': 12,
-            'messages': 3,
+            'total_enquiries': total_enquiries,
+            'new_registrations': new_registrations,
+            'pending_fees': float(pending_fees),
+            'certificates_generated': certificates_generated,
         }
     }
     
     return Response(dashboard_data)
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def staff_reports(request):
@@ -227,7 +254,7 @@ def create_student(request):
                 'message': 'Student created successfully',
                 'student': response_serializer.data,
                 'login_credentials': {
-                    'username': student.username,
+                    'username': student.registration_number,
                     'password': student.password  # This will be the plain password for first time
                 }
             }, status=status.HTTP_201_CREATED)
@@ -259,6 +286,11 @@ def list_students(request):
     centre = request.GET.get('centre')
     
     students = Student_api.objects.all()
+     # ALL staff (including counselors) can see ALL enquiries
+    students = Student_api.objects.all().select_related(
+        'enquiry_taken_by__user', 
+        'assign_enquiry__user'
+    )
     
     # Apply filters
     if enquiry_status:
@@ -269,8 +301,8 @@ def list_students(request):
         students = students.filter(centre=centre)
     
     # If staff is not manager, only show their assigned enquiries
-    if staff_profile.role not in ['manager']:
-        students = students.filter(assign_enquiry=staff_profile)
+    # if staff_profile.role not in ['manager']:
+    #     students = students.filter(assign_enquiry=staff_profile)
     
     serializer = StudentListSerializer(students, many=True)
     
@@ -278,7 +310,6 @@ def list_students(request):
         'count': students.count(),
         'students': serializer.data
     })
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_student_detail(request, student_id):
@@ -377,7 +408,9 @@ def student_stats(request):
     
     # Status-wise distribution
     status_stats = students.values('enquiry_status').annotate(count=Count('id'))
-    
+    status_counts = {}
+    for stat in status_stats:
+        status_counts[stat['enquiry_status']] = stat['count']
     # Centre-wise distribution
     centre_stats = students.values('centre').annotate(count=Count('id'))
     
@@ -386,7 +419,7 @@ def student_stats(request):
         'new_enquiries': new_enquiries,
         'converted_students': converted_students,
         'trade_distribution': list(trade_stats),
-        'status_distribution': list(status_stats),
+        'status_counts': status_counts,
         'centre_distribution': list(centre_stats)
     })
 

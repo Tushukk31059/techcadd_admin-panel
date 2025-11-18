@@ -114,6 +114,22 @@ class StudentSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ('username', 'password', 'created_at', 'updated_at', 'enquiry_taken_by')
 
+# staff_app/serializers.py
+class StudentCredentialsSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username')
+    registration_id = serializers.CharField(source='registration_number')
+    student_name = serializers.CharField()
+    course_name = serializers.CharField(source='course.name')
+    branch = serializers.CharField()
+    joining_date = serializers.DateField()
+    
+    class Meta:
+        model = StudentRegistration
+        fields = [
+            'id', 'username', 'registration_id', 'student_name', 
+            'course_name', 'branch', 'joining_date', 'created_at'
+        ]
+
 class CreateStudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student_api
